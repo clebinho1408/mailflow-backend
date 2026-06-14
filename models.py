@@ -32,6 +32,19 @@ class Email(Base):
         }
 
 class Rule(Base):
+class Account(Base):
+    __tablename__ = "accounts"
+    id         = Column(Integer, primary_key=True, index=True)
+    email      = Column(String, unique=True, nullable=False, index=True)
+    password   = Column(String, nullable=False)
+    imap_host  = Column(String, default="imap.gmail.com")
+    imap_port  = Column(Integer, default=993)
+    smtp_host  = Column(String, default="smtp.gmail.com")
+    smtp_port  = Column(Integer, default=587)
+    active     = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
     __tablename__ = "rules"
     id         = Column(Integer, primary_key=True)
     name       = Column(String); conditions = Column(JSON)
