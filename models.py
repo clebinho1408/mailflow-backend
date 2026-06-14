@@ -1,39 +1,65 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, JSON, Text
-from sqlalchemy.orm import declarative_base
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text
+from database import Base
 from datetime import datetime
 
-Base = declarative_base()
 
 class Email(Base):
     __tablename__ = "emails"
-    id          = Column(Integer, primary_key=True)
-    message_id  = Column(String, unique=True, index=True)
-    sender      = Column(String); email_from = Column(String)
-    recipient   = Column(String); subject    = Column(String)
-    body        = Column(Text);   date       = Column(DateTime, default=datetime.utcnow)
-    read        = Column(Boolean, default=False)
-    starred     = Column(Boolean, default=False)
-    folder      = Column(String,  default="inbox")
-    labels      = Column(JSON,    default=list)
-    attachments = Column(JSON,    default=list)
-    deleted     = Column(Boolean, default=False)
-    account     = Column(String,  default="main")
+
+    id         = Column(Integer, primary_key=True, index=True)
+    uid        = Column(String, unique=True, index=True)
+    subject    = Column(String, default="")
+    sender     = Column(String, default="")
+    recipient  = Column(String, default="")
+    body       = Column(Text, default="")
+    folder     = Column(String, default="inbox")
+    read       = Column(Boolean, default=False)
+    starred    = Column(Boolean, default=False)
+    deleted    = Column(Boolean, default=False)
+    date       = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
     def to_dict(self):
         return {
-            "id": self.id, "message_id": self.message_id,
-            "sender": self.sender, "email": self.email_from,
-            "subject": self.subject, "body": self.body,
-            "preview": (self.body or "")[:120],
-            "date": self.date.isoformat() if self.date else None,
-            "read": self.read, "starred": self.starred,
-            "folder": self.folder, "labels": self.labels or [],
-            "attachments": self.attachments or [], "account": self.account,
+            "id":        self.id,
+            "uid":       self.uid,
+            "subject":   self.subject,
+            "sender":    self.sender,
+            "recipient": self.recipient,
+            "body":      self.body,
+            "folder":    self.folder,
+            "read":      self.read,
+            "starred":   self.starred,
+            "deleted":   self.deleted,
+            "date":      str(self.date),
         }
 
+
 class Rule(Base):
+    __tablename__ = "rules"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    name       = Column(String, default="")
+    condition  = Column(String, default="")
+    value      = Column(String, default="")
+    action     = Column(String, default="")
+    active     = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id":        self.id,
+            "name":      self.name,
+            "condition": self.condition,
+            "value":     self.value,
+            "action":    self.action,
+            "active":    self.active,
+        }
+
+
 class Account(Base):
     __tablename__ = "accounts"
+
     id         = Column(Integer, primary_key=True, index=True)
     email      = Column(String, unique=True, nullable=False, index=True)
     password   = Column(String, nullable=False)
@@ -44,14 +70,11 @@ class Account(Base):
     active     = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-
-    __tablename__ = "rules"
-    id         = Column(Integer, primary_key=True)
-    name       = Column(String); conditions = Column(JSON)
-    actions    = Column(JSON);   active     = Column(Boolean, default=True)
-    applied    = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
     def to_dict(self):
-        return {"id":self.id,"name":self.name,"conditions":self.conditions,
-                "actions":self.actions,"active":self.active,"applied":self.applied}
+        return {
+            "id":        self.id,
+            "email":     self.email,
+            "imap_host": self.imap_host,
+            "smtp_host": self.smtp_host,
+            "active":    self.active,
+        }
