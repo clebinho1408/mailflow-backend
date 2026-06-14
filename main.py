@@ -149,3 +149,67 @@ async def del_rule(rid: int):
     db = SessionLocal(); r = db.query(Rule).filter(Rule.id==rid).first()
     if not r: raise HTTPException(404,"Não encontrada")
     db.delete(r); db.commit(); db.close(); return {"ok": True}
+# ── Account Models & Endpoints ───────────────────────────
+class AccountReq(BaseModel):
+    email: str
+    password: str
+    imap_host: str = "imap.gmail.com"
+    imap_port: int = 993
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 587
+
+@app.post("/api/accounts/test")
+async def test_account(req: AccountReq):
+    import imaplib, smtplib, ssl
+    errors = []
+    try:
+        ctx = ssl.create_default_context()
+        imap = imaplib.IMAP4_SSL(req.imap_host, req.imap_port, ssl_context=ctx)
+        imap.login(req.email, req.password)
+        imap.logout()
+    except Exception as e:
+        errors.append(f"IMAP: {str(e)}")
+    try:
+        with smtplib.SMTP(req.smtp_host, req.smtp_port, timeout=10) as s:
+            s.ehlo()
+            s.starttls()
+            s.login(req.email, req.password)
+    except Exception as e:
+        errors.append(f"SMTP: {str(e)}")
+    if errors:
+        raise HTTPException(status_code=400, detail=" | ".join(errors))
+    return {"ok": True, "message": f"Conexao com {req.email} bem-sucedida!"}
+
+@app.post("/api/accounts")
+async def add_account(req: AccountReq):
+    from sqlalchemy import text
+    db = SessionLocal()
+    try:
+        existing = db.execute(text("SELECT id FROM accounts WHERE email = :e"), {"e": req.email}).fetchone()
+        if existing:
+            db.execute(text("UPDATE accounts SET password=:pw, imap_host=:ih, imap_port=:ip, smtp_host=:sh, smtp_port=:sp WHERE email=:e"),
+                {"pw": req.password, "ih": req.imap_host, "ip": req.imap_port, "sh": req.smtp_host, "sp": req.smtp_port, "e": req.email})
+            msg = f"Conta {req.email} atualizada."
+        else:
+            db.execute(text("INSERT INTO accounts (email, password, imap_host, imap_port, smtp_host, smtp_port) VALUES (:e, :pw, :ih, :ip, :sh, :sp)"),
+                {"e": req.email, "pw": req.password, "ih": req.imap_host, "ip": req.imap_port, "sh": req.smtp_host, "sp": req.smtp_port})
+            msg = f"Conta {req.email} adicionada."
+        db.commit()
+        return {"ok": True, "message": msg, "email": req.email}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+@app.get("/api/accounts")
+async def list_accounts():
+    from sqlalchemy import text
+    db = SessionLocal()
+    try:
+        rows = db.execute(text("SELECT id, email, imap_host, smtp_host FROM accounts ORDER BY id")).fetchall()
+        return [{"id": r[0], "email": r[1], "imap_host": r[2], "smtp_host": r[3]} for r in rows]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
